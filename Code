@@ -1,0 +1,228 @@
+import numpy as np 
+import pandas as pd 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import random as rnd
+
+from collections import Counter
+
+# From Sklearn, sub-library model_selection, train_test_split so I can, well, split to training and test sets
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import make_scorer, accuracy_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import plot_roc_curve
+from sklearn.model_selection import learning_curve, validation_curve
+from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
+
+%matplotlib inline
+plt.style.use("seaborn-whitegrid")
+dataset = pd.read_csv("C:\Users\Ramapriya\Downloads\Alankan_Dataset.csv")
+data = dataset.sample(frac=.05)
+data.sample(10)
+data['Arrival Delay in Minutes']=data['Arrival Delay in Minutes'].fillna(data['Arrival Delay in Minutes'].mean()) 
+data.isnull().sum()
+X = data.drop('satisfaction',axis=1).values 
+y = data['satisfaction'].values
+
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2, random_state = 100)
+print (X_train.shape, y_train.shape)
+print (X_test.shape, y_test.shape)
+def plotLearningCurves(X_train, y_train, classifier, title):
+    train_sizes, train_scores, test_scores = learning_curve(
+            classifier, X_train, y_train, cv=5, scoring="accuracy")
+    
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+
+    plt.plot(train_sizes, train_scores_mean, label="Training Error")
+    plt.plot(train_sizes, test_scores_mean, label="Cross Validation Error")
+    
+    plt.legend()
+    plt.grid()
+    plt.title(title, fontsize = 18, y = 1.03)
+    plt.xlabel('Training Error', fontsize = 14)
+    plt.ylabel('Cross Validation Error', fontsize = 14)
+    plt.tight_layout()
+def plotValidationCurves(X_train, y_train, classifier, param_name, param_range, title):
+    train_scores, test_scores = validation_curve(
+        classifier, X_train, y_train, param_name = param_name, param_range = param_range,
+        cv=5, scoring="accuracy")
+
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+
+    plt.plot(param_range, train_scores_mean, label="Training Error")
+    plt.plot(param_range, test_scores_mean, label="Cross Validation Error")
+
+    plt.legend()
+    plt.grid()
+    plt.title(title, fontsize = 18, y = 1.03)
+    plt.xlabel('Training Error', fontsize = 14)
+    plt.ylabel('Cross Validation Error', fontsize = 14)
+    plt.tight_layout()
+# LogisticRegression
+from sklearn.linear_model import LogisticRegression
+LR = LogisticRegression()
+LR.fit(X_train,y_train) 
+y_perdict_test = LR.predict(X_test)
+
+from sklearn.metrics import confusion_matrix,classification_report
+cm = confusion_matrix(y_test,y_perdict_test)
+sns.heatmap(cm,annot=True)
+comparing actual response values (y_test) with predicted response values (y_pred) 
+from sklearn.metrics import accuracy_score
+LR_accuracy = accuracy_score(y_test,y_perdict_test)
+print("Logistic Regression model accuracy:", LR_accuracy) 
+#Random Forest Classifier
+rondomForestClf = RandomForestClassifier(n_estimators=9,max_depth=2, min_samples_split=2, min_samples_leaf=1)
+rondomForestClf.fit(X_train, y_train)
+rondomForestPredictions1 = rondomForestClf.predict(X_test)
+plt.figure(figsize = (16,5))
+title = 'Random Forest Learning Curve'
+plotLearningCurves(X_train, y_train, rondomForestClf, title)
+title = 'Random Forest Validation Curve'
+param_name = 'n_estimators'
+param_range = [4, 6, 9]
+plt.figure(figsize = (16,5))
+plotValidationCurves(X_train, y_train, rondomForestClf, param_name, param_range, title)
+print(accuracy_score(y_test, rondomForestPredictions1))
+print(confusion_matrix(y_test, rondomForestPredictions1))
+print(classification_report(y_test, rondomForestPredictions1))
+rondomForestClf_disp = plot_roc_curve(rondomForestClf, X_test, y_test)
+plt.show()
+#KNeighborsClassifier
+knn = KNeighborsClassifier(1)
+knn.fit(X_train, y_train)
+knnPredictions1 = knn.predict(X_test)
+print(accuracy_score(y_test, knnPredictions1))
+print(confusion_matrix(y_test, knnPredictions1))
+knn_disp = plot_roc_curve(knn, X_test, y_test)
+plt.show()
+plt.figure(figsize = (16,5))
+title = 'KNN k=1 Learning Curve'
+plotLearningCurves(X_train, y_train, knn, title)
+knn = KNeighborsClassifier()
+title = 'KNN Validation Curve'
+param_name = 'n_neighbors'
+param_range = np.arange(1,9,2)
+plt.figure(figsize = (16,5))
+plotValidationCurves(X_train, y_train, knn, param_name, param_range, title)
+#Support Vector Classifier
+svclassifier = SVC(C = 0.1 , gamma =1 ,kernel='sigmoid')
+svclassifier.fit(X_train, y_train)
+SvcPredictions1 = svclassifier.predict(X_test)
+print(classification_report(y_test,SvcPredictions1))
+print(classification_report(y_test, knnPredictions1))
+plt.figure(figsize = (16,5))
+title = 'Support Vector Machine Learning Curve'
+plotLearningCurves(X_train, y_train, svclassifier, title)
+title = 'Support Vector Machine Validation Curve'
+param_name = 'C'
+param_range = [0.1,1, 10]
+plt.figure(figsize = (16,5))
+plotValidationCurves(X_train, y_train, svclassifier, param_name, param_range, title)
+svclassifier = SVC(C = 1 , gamma =1 ,kernel='sigmoid')
+svclassifier.fit(X_train, y_train)
+SvcPredictions2 = svclassifier.predict(X_test)
+print(classification_report(y_test,SvcPredictions2))
+#Neural Network Learning
+def neural_network_learning_curve(classifier):
+    
+    title = 'Neural Network Learning Curve'
+    plt.figure(figsize = (16,5))
+    plotLearningCurves(X_train, y_train, classifier, title)
+ def neural_network_validation_curve(classifier):   
+    
+    title = 'Neural Network Validation Curve'
+    param_name="alpha"
+    param_range = np.logspace(-6, -1, 5)
+    plt.figure(figsize = (16,5))
+    plotValidationCurves(X_train, y_train, classifier, param_name, param_range, title)
+nnclf1 = MLPClassifier(hidden_layer_sizes=(2, 1), activation='logistic', solver='adam', max_iter=500, 
+                    alpha=1e-5, random_state=1)
+nnclf1.fit(X_train, y_train)
+NeuralNetworkPredictions1 = nnclf1.predict(X_test)
+print(confusion_matrix(y_test,NeuralNetworkPredictions1))
+print(classification_report(y_test,NeuralNetworkPredictions1))
+neural_network_validation_curve(nnclf1)
+NeuralNetworkPredictions2 = nnclf1.predict(X_test)
+print(confusion_matrix(y_test,NeuralNetworkPredictions2))
+print(classification_report(y_test,NeuralNetworkPredictions2))
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_curve, roc_auc_score
+
+classifiers = [LogisticRegression(random_state=1234), 
+               SVC(),
+               KNeighborsClassifier(), 
+               RandomForestClassifier(random_state=1234),
+               MLPClassifier()]
+
+result_table = pd.DataFrame(columns=['classifiers', 'fpr','tpr','auc'])
+ 
+lr_fpr1, lr_tpr1, _ = roc_curve(y_test, rondomForestPredictions3)
+lr_fpr2, lr_tpr2, _ = roc_curve(y_test, knnPredictions5)
+lr_fpr3, lr_tpr3, _ = roc_curve(y_test, SvcPredictions4)
+lr_fpr4, lr_tpr4, _ = roc_curve(y_test, NeuralNetworkPredictions2)
+
+auc1 = roc_auc_score(y_test, rondomForestPredictions3)
+auc2 = roc_auc_score(y_test, knnPredictions5)
+auc3 = roc_auc_score(y_test, SvcPredictions5)
+auc4 = roc_auc_score(y_test, NeuralNetworkPredictions2)
+result_table = result_table.append({'classifiers':RandomForestClassifier.__class__.__name__,
+                                     'fpr':lr_fpr1, 
+                                     'tpr':lr_tpr1, 
+                                     'auc':auc1}, ignore_index=True)
+
+result_table = result_table.append({'classifiers':KNeighborsClassifier.__class__.__name__,
+                                     'fpr':lr_fpr2, 
+                                     'tpr':lr_tpr2, 
+                                     'auc':auc2}, ignore_index=True)
+
+result_table = result_table.append({'classifiers':SVC.__class__.__name__,
+                                     'fpr':lr_fpr3, 
+                                     'tpr':lr_tpr3, 
+                                     'auc':auc3}, ignore_index=True)
+
+result_table = result_table.append({'classifiers':MLPClassifier.__class__.__name__,
+                                     'fpr':lr_fpr4, 
+                                     'tpr':lr_tpr4, 
+                                     'auc':auc4}, ignore_index=True)
+fig = plt.figure(figsize=(8,6))
+plt.plot(result_table.loc[0]['fpr'], 
+         result_table.loc[0]['tpr'], 
+         label="RandomForestClassifier, AUC={:.3f}".format( result_table.loc[0]['auc']))
+
+plt.plot(result_table.loc[1]['fpr'], 
+         result_table.loc[1]['tpr'], 
+         label="KNeighborsClassifier, AUC={:.3f}".format( result_table.loc[1]['auc']))
+
+plt.plot(result_table.loc[2]['fpr'], 
+         result_table.loc[2]['tpr'], 
+         label="SVM, AUC={:.3f}".format( result_table.loc[2]['auc']))
+
+plt.plot(result_table.loc[3]['fpr'], 
+         result_table.loc[3]['tpr'], 
+         label="MLPClassifier, AUC={:.3f}".format( result_table.loc[3]['auc']))
+plt.xticks(np.arange(0.0, 1.1, step=0.1))
+plt.xlabel("Flase Positive Rate", fontsize=15)
+
+plt.yticks(np.arange(0.0, 1.1, step=0.1))
+plt.ylabel("True Positive Rate", fontsize=15)
+
+plt.title('ROC Curve Analysis', fontweight='bold', fontsize=15)
+plt.legend(prop={'size':13}, loc='lower right')
+
+plt.show()
